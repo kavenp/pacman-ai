@@ -73,7 +73,8 @@ class MonteCarloAgent(CaptureAgent):
                 self.boundary.append((self.middle, i))
 
     def chooseAction(self, gameState):
-        if gameState.getAgentPosition(self.index)[0] > self.middle - 2:
+        # if gameState.getAgentPosition(self.index)[0] > self.middle - 2:
+        if gameState.getAgentState(self.index).isPacman:
             return self.selectActionBaseOnTree(gameState)
         else:
             return self.selectActionBaseOnDis(gameState)
@@ -270,12 +271,8 @@ class OffensiveAgent(MonteCarloAgent):
         return features
 
     def getWeights(self, gameState, features):
-        # If opponent is scared, the agent should not care about GhostDistance
         successor = gameState
-        # numOfFood = len(self.getFood(successor).asList())
         numOfCarrying = successor.getAgentState(self.index).numCarrying
-        # CurrentPosition = successor.getAgentState(self.index).getPosition()
-        # myself = successor.getAgentState.(self.index).isPacman
         opponents = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
         if len(visible) > 0:
@@ -284,36 +281,34 @@ class OffensiveAgent(MonteCarloAgent):
                     if agent.scaredTimer > 12:
                         return {'successorScore': 110, 'distanceToFood': -10, 'distanceToEnemiesPacMan': 0,
                                 'GhostDistance': -1, 'distanceToCapsule': 0, 'carrying': 350,
-                                'returned': 10 - 3 * numOfCarrying, 'corner': 0, 'foodLeft': 0}
+                                'returned': 10 - 3 * numOfCarrying, 'corner': -2, 'foodLeft': 0}
 
                     elif 6 < agent.scaredTimer < 12:
                         return {'successorScore': 110 + 5 * numOfCarrying, 'distanceToFood': -5,
                                 'distanceToEnemiesPacMan': 0,
                                 'GhostDistance': -15, 'distanceToCapsule': -10, 'carrying': 100,
-                                'returned': -5 - 4 * numOfCarrying, 'corner': 0, 'foodLeft': 0
+                                'returned': -5 - 4 * numOfCarrying, 'corner': -2, 'foodLeft': 0
                                 }
 
                 # Visible and not scared
                 else:
                     return {'successorScore': 110, 'distanceToFood': -10, 'distanceToEnemiesPacMan': 0,
-                            'GhostDistance': 20, 'distanceToCapsule': -15, 'carrying': 0, 'returned': -15, 'corner': 0,
+                            'GhostDistance': 20, 'distanceToCapsule': -15, 'carrying': 0, 'returned': -15, 'corner': -2,
                             'foodLeft': 0
                             }
 
-        # If I am not PacMan the enemy is a pacMan, I can try to eliminate him
-        # Attacker only try to defence if it is close to it (less than 4 steps)
         enemiesPacMan = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         Range = filter(lambda x: x.isPacman and x.getPosition() != None, enemiesPacMan)
         if len(Range) > 0 and not gameState.getAgentState(self.index).isPacman:
-            return {'successorScore': 0, 'distanceToFood': -1, 'distanceToEnemiesPacMan': -8,
+            return {'successorScore': 0, 'distanceToFood': -1, 'distanceToEnemiesPacMan': 0,  # -8,
                     'distanceToCapsule': 0, 'GhostDistance': 0,
-                    'returned': 0, 'carrying': 10, 'corner': 0,
+                    'returned': 0, 'carrying': 10, 'corner': -2,
                     'foodLeft': 0}
 
-        # Did not see anything
         return {'successorScore': 1000 + numOfCarrying * 3.5, 'distanceToFood': -7, 'GhostDistance': 0,
                 'distanceToEnemiesPacMan': 0,
-                'distanceToCapsule': -5, 'carrying': 350, 'returned': 5 - numOfCarrying * 3, 'corner': 0,
+                'distanceToCapsule': -5,
+                'carrying': 350, 'returned': 5 - numOfCarrying * 3, 'corner': -2,
                 'foodLeft': 0}
 
 
