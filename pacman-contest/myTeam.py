@@ -11,7 +11,7 @@
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
-import game, random, time, util, sys
+import game, random, util
 from captureAgents import CaptureAgent
 from game import Directions
 
@@ -86,7 +86,7 @@ class GameAgent(CaptureAgent):
     # Initialise strategy as one attacker and defender
     self.strats = {}
     self.strats[self.team[0]] = "Attack"
-    self.strats[self.team[1]] = "Defend"
+    self.strats[self.team[1]] = "Defense"
 
     # Flags for agent choice status
     # More detailed than strategy
@@ -102,6 +102,8 @@ class GameAgent(CaptureAgent):
       self.beliefs[enemyAgent] = util.Counter()
       # We know where enemies start, so we set the initial belief here to 1
       self.beliefs[enemyAgent][gameState.getInitialAgentPosition(enemyAgent)] = 1.0
+
+    self.distancer.getMazeDistances()
 
   def initBeliefs(self, enemy):
     """
@@ -171,6 +173,7 @@ class GameAgent(CaptureAgent):
   def chooseAction(self, gameState):
     # Update data
     self.agentPos = gameState.getAgentPosition(self.index)
+    self.enemies = self.getOpponents(gameState)
     # Inferred gamestate copy where we will place enemies most likely positions
     infState = gameState.deepCopy()
 
@@ -179,10 +182,7 @@ class GameAgent(CaptureAgent):
       # Enemy states
       eState = gameState.getAgentState(e)
       # Update enemy ghost and Pacman lists
-      if eState.isPacman:
-        self.enemyPac.append(e)
-      else:
-        self.enemyGhost.append(e)
+
       ePos = gameState.getAgentPosition(e)
       # If there is an accurate position
       if ePos:
@@ -201,7 +201,7 @@ class GameAgent(CaptureAgent):
         self.elapseTime(e, gameState)
         self.observe(e, gameState)
     #Check distributions
-    self.displayDistributionsOverPositions(self.beliefs.values())
+    #self.displayDistributionsOverPositions(self.beliefs.values())
 
     # Creates a new inferred GameState that includes the most likely positions of enemies
     for e in self.enemies:
@@ -211,10 +211,15 @@ class GameAgent(CaptureAgent):
       isPac = (infState.isOnRedTeam(e) != infState.isRed(guessPos))
       infState.data.agentStates[e] = game.AgentState(config, isPac)
 
+    # Return if only one action available
+    possibleActs = self.getActions(infState, self.index)
+    if len(possibleActs) == 1:
+      return possibleActs[0]
     # Evaluate strategy that should be used for agents in the current inferred gameState
     self.evalStrat(infState)
     # Run Expectimax to depth 2 since longer will run over time
-    act = self.maxFunction(infState, 2)[1]
+    best, act = self.maxFunction(infState, 2)
+    #print best
     return act
 
   def maxFunction(self, gameState, depth):
@@ -234,6 +239,7 @@ class GameAgent(CaptureAgent):
     for succ in successors:
       scores.append(self.expectiFunction(succ, self.enemies[0], depth)[0])
     best = max(scores)
+    indexes = []
     # Return first best score and action
     for i in range(len(scores)):
       if scores[i] == best:
@@ -265,7 +271,6 @@ class GameAgent(CaptureAgent):
     # Expected score value
     expScore = sum(scores) / len(scores)
     return expScore, Directions.STOP
-
 
   def evalStrat(self, gameState):
     """
@@ -302,19 +307,29 @@ class GameAgent(CaptureAgent):
     # When we're scared just run
     if myState.scaredTimer > 0:
       self.strats[self.index] = "Run"
+      self.strats[self.getTeamMate()] = "Run"
     else:
-      self.strats[self.index] = "Attack"
+      self.strats[self.team[0]] = "Attack"
+      self.strats[self.team[1]] = "Defense"
 
   def evalFunction(self, gameState):
     score = self.getScore(gameState)
-    myPos = self.agentPos
+    myPos = gameState.getAgentPosition(self.index)
     enemyScareTime = [gameState.getAgentState(e).scaredTimer for e in self.enemies]
     numCarry = gameState.getAgentState(self.index).numCarrying
+    enemyPac = []
+    enemyGhost = []
+    for e in self.enemies:
+      eState = gameState.getAgentState(e)
+      if eState.isPacman:
+        enemyPac.append(e)
+      else:
+        enemyGhost.append(e)
     # Set carry limits so that agents return after eating enough food
-    if score > 5:
-      carry = 3
+    if score < 5:
+      carry = 4
     else:
-      carry = 5
+      carry = 3
     food = self.getFood(gameState).asList()
     # Direct orthogonal distance to middle
     distHome = abs(self.agentPos[0] - self.mapW/2)
@@ -322,11 +337,11 @@ class GameAgent(CaptureAgent):
     teamDist = self.distancer.getDistance(myPos, gameState.getAgentPosition(self.getTeamMate()))
     # Positions of the enemies
     enemyPos = [gameState.getAgentPosition(e) for e in self.enemies]
-    ghostPos = [gameState.getAgentPosition(ghost) for ghost in self.enemyGhost]
-    pacPos = [gameState.getAgentPosition(pac) for pac in self.enemyPac]
+    ghostPos = [gameState.getAgentPosition(ghost) for ghost in enemyGhost]
+    pacPos = [gameState.getAgentPosition(pac) for pac in enemyPac]
     # Capsule list
-    capsules = self.getCapsules()
-    defCaps = self.getCapsulesYouAreDefending()
+    capsules = self.getCapsules(gameState)
+    defCaps = self.getCapsulesYouAreDefending(gameState)
 
     # Get minimum distances
     ghostMinD = self.getMinDistance(myPos, ghostPos)
@@ -342,21 +357,20 @@ class GameAgent(CaptureAgent):
 
     # Flip the signs if they are scared and close enough to catch
     if min(enemyScareTime) < 8 and ghostMinD <= 4:
-      ghostMinD *= -1
+      ghostMinD *= -5
 
     if self.strats[self.index] == "Attack":
       # Reached carry threshold or no more food
       if numCarry > carry or len(food) < 1:
-        return - 3 * distHome + 300 * ghostMinD
+        return - distHome + 500 * ghostMinD
       else:
         # Continue attack
-        return 2 * numCarry + 3 * score - 50 * len(food) - 4 * foodMinD - 700 * len(capsules) - 6 * capMinD + 75 * ghostMinD
+        return numCarry + 2 * score - 150 * len(food) - 3 * foodMinD - 5000 * len(capsules) - 4 * capMinD + 150 * ghostMinD
     elif self.strats[self.index] == "Defense":
-        return - 500 * len(self.enemyPac) - 5 * pacMinD - 2 * defCapMinD
+        return - 500 * len(self.enemyPac) - 10 * pacMinD - 2 * defCapMinD
     else:
         # Run Away!
         return - 4 * teamDist + 400 * ghostMinD
-
 
   def getTeamMateClosest(self, gameState, enemy):
     """
@@ -378,7 +392,7 @@ class GameAgent(CaptureAgent):
     Gets the minimum distance for a list of positions to pos
     """
     if posList:
-      minD = min([self.distancer.getDistance(pos, p) for p in posList])
+      minD = min([self.getMazeDistance(pos, p) for p in posList])
     else:
       minD = 0
     return minD
