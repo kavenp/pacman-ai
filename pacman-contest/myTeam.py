@@ -76,17 +76,20 @@ class GameAgent(CaptureAgent):
     self.team = self.getTeam(gameState)
     self.enemies = self.getOpponents(gameState)
 
+    # List of seen enemies
     self.seen = []
+    # List of enemy pacman
+    self.enemyPac = []
+    # List of enemy ghosts, initialised since enemies start as ghosts
+    self.enemyGhost = self.enemies
 
-    # Initialise strategy for team as Attack
+    # Initialise strategy as one attacker and defender
     self.strats = {}
-    for i in self.team:
-        self.strats[i] = 'Attack'
+    self.strats[self.team[0]] = "Attack"
+    self.strats[self.team[1]] = "Defend"
 
     # Flags for agent choice status
     # More detailed than strategy
-
-    self.closestEnemy = None
     self.agentPos = gameState.getAgentPosition(self.index)
     #self.closestFood = self.getClosestFood(self.foodList, self.agentPos)[0]
 
@@ -166,12 +169,20 @@ class GameAgent(CaptureAgent):
       self.beliefs[enemy] = newBeliefs
 
   def chooseAction(self, gameState):
-    agentPos = gameState.getAgentPosition(self.index)
+    # Update data
+    self.agentPos = gameState.getAgentPosition(self.index)
     # Inferred gamestate copy where we will place enemies most likely positions
     infState = gameState.deepCopy()
 
     # Calculate enemies position probability distributions
     for e in self.enemies:
+      # Enemy states
+      eState = gameState.getAgentState(e)
+      # Update enemy ghost and Pacman lists
+      if eState.isPacman:
+        self.enemyPac.append(e)
+      else:
+        self.enemyGhost.append(e)
       ePos = gameState.getAgentPosition(e)
       # If there is an accurate position
       if ePos:
@@ -256,10 +267,129 @@ class GameAgent(CaptureAgent):
     return expScore, Directions.STOP
 
 
-  #def evalStrat(self, gameState):
+  def evalStrat(self, gameState):
+    """
+    Evaluation function to determine the agent's strategy
+    """
+    myState = gameState.getAgentState(self.index)
+    enemyScareTime = [gameState.getAgentState(e).scaredTimer for e in self.enemies]
+    curStrat = self.strats[self.index]
+    teamMateStrat = self.getTeamMateStrat()
+    curAtk = (curStrat == "Attack")
+    teamAtk = (teamMateStrat == "Attack")
+    myAtkNum = len([v for v in self.strats.values() if v == "Attack"])
+    myDefNum = 2 - myAtkNum
+    # Try to keep the numbers advantage
+    if len(self.enemyPac) == 2 and myDefNum < 2:
+      for t in self.team:
+        self.strats[t] = "Defense"
+    # Defend strategy for the closest teammate
+    elif len(self.enemyPac) == 1:
+      closestTeam = self.getTeamMateClosest(gameState, self.enemyPac[0])
+      if self.index != closestTeam:
+        self.strats[closestTeam] = "Defense"
+        self.strats[self.index] = "Attack"
+      else:
+        self.strats[self.index] = "Defense"
+        self.strats[self.getTeamMate()] = "Attack"
+    else:
+      for t in self.team:
+        self.strats[t] = "Attack"
+    # Full on attack if losing and running out of time or if enemies are scared
+    if min(enemyScareTime) > 5 or (gameState.data.timeleft < 200 and self.getScore(gameState) < 0):
+      for t in self.team:
+        self.strats[t] = "Attack"
+    # When we're scared just run
+    if myState.scaredTimer > 0:
+      self.strats[self.index] = "Run"
+    else:
+      self.strats[self.index] = "Attack"
+
+  def evalFunction(self, gameState):
+    score = self.getScore(gameState)
+    myPos = self.agentPos
+    enemyScareTime = [gameState.getAgentState(e).scaredTimer for e in self.enemies]
+    numCarry = gameState.getAgentState(self.index).numCarrying
+    # Set carry limits so that agents return after eating enough food
+    if score > 5:
+      carry = 3
+    else:
+      carry = 5
+    food = self.getFood(gameState).asList()
+    # Direct orthogonal distance to middle
+    distHome = abs(self.agentPos[0] - self.mapW/2)
+    # Distance from other teammate, split and run
+    teamDist = self.distancer.getDistance(myPos, gameState.getAgentPosition(self.getTeamMate()))
+    # Positions of the enemies
+    enemyPos = [gameState.getAgentPosition(e) for e in self.enemies]
+    ghostPos = [gameState.getAgentPosition(ghost) for ghost in self.enemyGhost]
+    pacPos = [gameState.getAgentPosition(pac) for pac in self.enemyPac]
+    # Capsule list
+    capsules = self.getCapsules()
+    defCaps = self.getCapsulesYouAreDefending()
+
+    # Get minimum distances
+    ghostMinD = self.getMinDistance(myPos, ghostPos)
+    pacMinD = self.getMinDistance(myPos, pacPos)
+    foodMinD = self.getMinDistance(myPos, food)
+    capMinD = self.getMinDistance(myPos, capsules)
+    defCapMinD = self.getMinDistance(myPos, defCaps)
+    enemyMinD = self.getMinDistance(myPos, enemyPos)
+
+    # Set minimum ghost distance to 0
+    if ghostMinD > 4:
+      ghostMinD = 0
+
+    # Flip the signs if they are scared and close enough to catch
+    if min(enemyScareTime) < 8 and ghostMinD <= 4:
+      ghostMinD *= -1
+
+    if self.strats[self.index] == "Attack":
+      # Reached carry threshold or no more food
+      if numCarry > carry or len(food) < 1:
+        return - 3 * distHome + 300 * ghostMinD
+      else:
+        # Continue attack
+        return 2 * numCarry + 3 * score - 50 * len(food) - 4 * foodMinD - 700 * len(capsules) - 6 * capMinD + 75 * ghostMinD
+    elif self.strats[self.index] == "Defense":
+        return - 500 * len(self.enemyPac) - 5 * pacMinD - 2 * defCapMinD
+    else:
+        # Run Away!
+        return - 4 * teamDist + 400 * ghostMinD
 
 
-  #def evalFunction(self, gameState):
+  def getTeamMateClosest(self, gameState, enemy):
+    """
+    Helper that gets the closest team mate to an enemy
+    """
+    ePos = gameState.getAgentPosition(enemy)
+    min = float("inf")
+    minTeam = None
+    for t in self.team:
+      tPos = gameState.getAgentPosition(t)
+      dist = self.distancer.getDistance(tPos, ePos)
+      if dist < min:
+        min = dist
+        minTeam = t
+    return minTeam
+
+  def getMinDistance(self, pos, posList):
+    """
+    Gets the minimum distance for a list of positions to pos
+    """
+    if posList:
+      minD = min([self.distancer.getDistance(pos, p) for p in posList])
+    else:
+      minD = 0
+    return minD
+
+  def getTeamMateStrat(self):
+    return self.strats[self.getTeamMate()]
+
+  def getTeamMate(self):
+    for t in self.team:
+      if t != self.index:
+        return t
 
   def getActions(self, gameState, agent):
     """
