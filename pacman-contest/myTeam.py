@@ -46,54 +46,47 @@ def createTeam(firstIndex, secondIndex, isRed, first='OffensiveAgent', second='D
     return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
 
-class DefaultAgent(CaptureAgent):
-    def registerInitialState(self, gameState):
-        CaptureAgent.registerInitialState(self, gameState)
-
-    def chooseAction(self, gameState):
-        return random.choice(gameState.getLegalActions(self.index))
-
-
 class MonteCarloAgent(CaptureAgent):
 
     def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(self, gameState)
-        self.startState = gameState
-        self.MAX_DEPTH = 4
-        self.MAX_SIMULATION_DEPTH = 1
-        self.DISCOUNT_RATE = 0.2
 
-        if gameState.isOnRedTeam(self.index):
-            self.middle = (gameState.data.layout.width - 2) / 2
-        else:
-            self.middle = ((gameState.data.layout.width - 2) / 2) + 1
-        self.boundary = []
-        for i in range(1, gameState.data.layout.height - 1):
-            if not gameState.hasWall(self.middle, i):
-                self.boundary.append((self.middle, i))
+        # parameters
+        self.MAX_TREE_DEPTH = 6
+        self.MAX_SIMULATION_DEPTH = 1
+        self.DISCOUNT_RATE = 0.3
+
+        # get the boundary tiles
+        self.boundary = self.getBoundry(gameState)
 
     def chooseAction(self, gameState):
-        # if gameState.getAgentPosition(self.index)[0] > self.middle - 2:
-        if gameState.getAgentState(self.index).isPacman:
-            return self.selectActionBaseOnTree(gameState)
+        pass
+
+    def getBoundry(self, gameState):
+        if gameState.isOnRedTeam(self.index):
+            middle = (gameState.data.layout.width - 2) / 2
         else:
-            return self.selectActionBaseOnDis(gameState)
+            middle = ((gameState.data.layout.width - 2) / 2) + 1
 
-    def selectActionBaseOnDis(self, gameState):
+        boundary = []
+        for i in range(1, gameState.data.layout.height - 1):
+            if not gameState.hasWall(middle, i):
+                boundary.append((middle, i))
+        return boundary
+
+    '''
+    =================================[go to food]===========================================
+    '''
+
+    def selectActionBaseOnDisToFood(self, gameState):
         actions = gameState.getLegalActions(self.index)
-
-        # You can profile your evaluation time by uncommenting these lines
-        # start = time.time()
         values = [self.evaluateDis(gameState, a) for a in actions]
-        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
-
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
         foodLeft = len(self.getFood(gameState).asList())
-
         if foodLeft <= 2:
-            bestDist = 9999
+            bestDist = sys.maxint
             for action in actions:
                 successor = self.getSuccessor(gameState, action)
                 pos2 = successor.getAgentPosition(self.index)
@@ -105,7 +98,36 @@ class MonteCarloAgent(CaptureAgent):
 
         return random.choice(bestActions)
 
+    def evaluateDis(self, gameState, action):
+        features = self.getDisFeatures(gameState, action)
+        weights = self.getDisWeights(gameState, action)
+        return features * weights
+
+    def getDisFeatures(self, gameState, action):
+        features = util.Counter()
+        successor = self.getSuccessor(gameState, action)
+        foodList = self.getFood(successor).asList()
+        features['gameStateScore'] = -len(foodList)
+        # Compute distance to the nearest food
+        if len(foodList) > 0:  # This should always be True,  but better safe than sorry
+            myPos = successor.getAgentState(self.index).getPosition()
+            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = minDistance
+        return features
+
+    def getDisWeights(self, gameState, action):
+        return {'gameStateScore': 100, 'distanceToFood': -1}
+
+    '''
+    ==========================================================================================
+    '''
+
+    '''
+    ===============================[Monte Carlo Tree Search]==================================
+    '''
+
     def selectActionBaseOnTree(self, gameState):
+        start = time.time()
         self.explore_depth = 0
         tree = TreeNode(parent_node=None, action=None, gameState=copy.deepcopy(gameState), index=self.index, depth=0)
         all_leaf_nodes = self.treePolicy(tree)
@@ -114,7 +136,8 @@ class MonteCarloAgent(CaptureAgent):
 
         for child in tree.childNodes:
             print child.action + ":" + str(child.reward) + " ",
-        print " [" + tree.getBestRewardChild().action + "]"
+        print " [" + tree.getBestRewardChild().action + "]",
+        print ' time[%d: %.4f]' % (self.index, time.time() - start)
         return tree.getBestRewardChild().action
 
     def treePolicy(self, tree):
@@ -123,7 +146,7 @@ class MonteCarloAgent(CaptureAgent):
         leaf_nodes = []
         while not stack.isEmpty():
             current = stack.pop()
-            if current.depth < self.MAX_DEPTH - 1:
+            if current.depth < self.MAX_TREE_DEPTH - 1:
                 while not current.isFullyExpand():
                     childAction = random.choice(current.actionsNeedsTry)
                     child = current.expand(childAction)
@@ -144,57 +167,11 @@ class MonteCarloAgent(CaptureAgent):
             leaf_node.reward = (1 - discount) * leaf_node.reward + discount * self.evaluate(gameState)
         leaf_node.backup(self.DISCOUNT_RATE)
 
-    def evaluate(self, gameState):
-        """
-        Computes a linear combination of features and feature weights
-        """
-        features = self.getFeatures(gameState)
-        weights = self.getWeights(gameState, features)
-        return features * weights
-
-    def getFeatures(self, gameState):
-        """
-        Returns a counter of features for the state
-        """
-        features = util.Counter()
-        successor = self.getSuccessor(gameState)
-        features['successorScore'] = self.getScore(successor)
-        return features
-
-    def getWeights(self, gameState, features):
-        """
-        Normally, weights do not depend on the gamestate.  They can be either
-        a counter or a dictionary.
-        """
-        return {'successorScore': 1.0}
-
-    def evaluateDis(self, gameState, action):
-        """
-        Computes a linear combination of features and feature weights
-        """
-        features = self.getDisFeatures(gameState, action)
-        weights = self.getDisWeights(gameState, action)
-        return features * weights
-
-    def getDisFeatures(self, gameState, action):
-        features = util.Counter()
-        successor = self.getSuccessor(gameState, action)
-        foodList = self.getFood(successor).asList()
-        features['successorScore'] = -len(foodList)  # self.getScore(successor)
-        # Compute distance to the nearest food
-        if len(foodList) > 0:  # This should always be True,  but better safe than sorry
-            myPos = successor.getAgentState(self.index).getPosition()
-            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-            features['distanceToFood'] = minDistance
-        return features
-
-    def getDisWeights(self, gameState, action):
-        return {'successorScore': 100, 'distanceToFood': -1}
+    '''
+    ==========================================================================================
+    '''
 
     def getSuccessor(self, gameState, action):
-        """
-        Finds the next successor which is a grid position (location tuple).
-        """
         successor = gameState.generateSuccessor(self.index, action)
         pos = successor.getAgentState(self.index).getPosition()
         if pos != nearestPoint(pos):
@@ -203,26 +180,110 @@ class MonteCarloAgent(CaptureAgent):
         else:
             return successor
 
+    def getEnemieGoasts(self, gameState):
+        opponents = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+        goast = filter(lambda x: not x.isPacman, opponents)
+        return goast
+
+    def getEnemiePacman(self, gameState):
+        opponents = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+        pacman = filter(lambda x: x.isPacman, opponents)
+        return pacman
+
+    def getVisibleGoasts(self, gameState):
+        opponents = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+        visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
+        return visible
+
+    def getVisiblePacman(self, gameState):
+        opponents = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+        visible = filter(lambda x: x.isPacman and x.getPosition() != None, opponents)
+        return visible
+
+    def getEenemies(self, gameState):
+        enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+        return enemies
+
+    def getVisibleEnemies(self, gameState):
+        opponents = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+        visible = filter(lambda x: x.getPosition() != None, opponents)
+        return visible
+
+    def evaluate(self, gameState):
+        features = self.getFeatures(gameState)
+        weights = self.getWeights(gameState, features)
+        return features * weights
+
+    def getFeatures(self, gameState):
+        pass
+
+    def getWeights(self, gameState, features):
+        pass
+
+    def getAgentPosition(self, gameState):
+        return gameState.getAgentState(self.index).getPosition()
+
+    def getMinDisToBoundary(self, gameState):
+        myPosition = self.getAgentPosition(gameState)
+        boundaryMin = sys.maxint
+        for i in range(len(self.boundary)):
+            disBoundary = self.getMazeDistance(myPosition, self.boundary[i])
+            if (disBoundary < boundaryMin):
+                boundaryMin = disBoundary
+        return boundaryMin
+
+    def getEnemieGoastScareTime(self, gameState):
+        goasts = self.getEnemieGoasts(gameState)
+        scare_time = 0
+        for goast in goasts:
+            scare_time = goast.scaredTimer
+            break
+        return scare_time
+
+
+'''
+=======================
+=== Offensive Agent ===
+=======================
+'''
+
 
 class OffensiveAgent(MonteCarloAgent):
+
+    def chooseAction(self, gameState):
+        visibleGoasts = self.getVisibleGoasts(gameState)
+        if gameState.getAgentState(self.index).isPacman:
+            if len(visibleGoasts) <= 0 or self.getEnemieGoastScareTime(gameState) >= 15:
+                return self.selectActionBaseOnDisToFood(gameState)
+            else:
+                return self.selectActionBaseOnTree(gameState)
+        else:
+            return self.selectActionBaseOnDisToFood(gameState)
 
     def getFeatures(self, gameState):
         features = util.Counter()
         myPosition = gameState.getAgentState(self.index).getPosition()
         foodList = self.getFood(gameState).asList()
-
-        # [1]carrying food number
+        '''
+        [1]--->carrying food
+        '''
         features['carrying'] = gameState.getAgentState(self.index).numCarrying
 
-        # [2]left food number
+        '''
+        [2]--->food left
+        '''
         features['foodLeft'] = len(foodList)
 
-        # [3]Compute distance to the nearest food
+        '''
+        [3]--->Compute distance to the nearest food
+        '''
         if len(foodList) > 0:
             minDistance = min([self.getMazeDistance(myPosition, food) for food in foodList])
             features['distanceToFood'] = minDistance
 
-        # [4]Compute distance to closest ghost
+        '''
+        [4]--->Compute distance to closest ghost
+        '''
         opponentsState = []
         for i in self.getOpponents(gameState):
             opponentsState.append(gameState.getAgentState(i))
@@ -235,14 +296,18 @@ class OffensiveAgent(MonteCarloAgent):
                 # print(CurrentPosition,closest,closestDist)
                 features['GhostDistance'] = closestDist
 
-        # [5]Dead Corner
+        '''
+        [5]--->Dead Corner
+        '''
         actions = gameState.getLegalActions(self.index)
         if len(actions) <= 2:
             features['corner'] = 1
         else:
             features['corner'] = 0
 
-        # [6]Compute distance to the nearest capsule
+        '''
+        [6]--->Compute distance to the nearest capsule
+        '''
         capsuleList = self.getCapsules(gameState)
         if len(capsuleList) > 0:
             minCapsuleDistance = 99999
@@ -254,62 +319,97 @@ class OffensiveAgent(MonteCarloAgent):
         else:
             features['distanceToCapsule'] = 0
 
-        # [7]Compute the distance to the nearest boundary
-        boundaryMin = sys.maxint
-        for i in range(len(self.boundary)):
-            disBoundary = self.getMazeDistance(myPosition, self.boundary[i])
-            if (disBoundary < boundaryMin):
-                boundaryMin = disBoundary
-        features['returned'] = boundaryMin
+        '''
+        [7]--->(return)Compute the distance to the nearest boundary
+        '''
+        features['returned'] = self.getMinDisToBoundary(gameState)
 
-        # [8] state score
-        features['successorScore'] = gameState.getScore()
+        '''
+        [8]--->state score
+        '''
+        features['gameStateScore'] = gameState.getScore()
 
-        # [9]
+        '''
+        [9]--->distance to enemie pacman
+        '''
         features['distanceToEnemiesPacMan'] = 0
 
         return features
 
     def getWeights(self, gameState, features):
-        successor = gameState
-        numOfCarrying = successor.getAgentState(self.index).numCarrying
-        opponents = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-        visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
-        if len(visible) > 0:
-            for agent in visible:
-                if agent.scaredTimer > 0:
-                    if agent.scaredTimer > 12:
-                        return {'successorScore': 110, 'distanceToFood': -10, 'distanceToEnemiesPacMan': 0,
-                                'GhostDistance': -1, 'distanceToCapsule': 0, 'carrying': 350,
-                                'returned': 10 - 3 * numOfCarrying, 'corner': -2, 'foodLeft': 0}
-
-                    elif 6 < agent.scaredTimer < 12:
-                        return {'successorScore': 110 + 5 * numOfCarrying, 'distanceToFood': -5,
+        '''
+        [1]--->carrying food
+        [2]--->food left
+        [3]--->Compute distance to the nearest food
+        [4]--->Compute distance to closest ghost
+        [5]--->Dead Corner
+        [6]--->Compute distance to the nearest capsule
+        [7]--->Compute the distance to the nearest boundary
+        [8]--->state score
+        [9]--->distance to enemie pacman
+        '''
+        numOfCarrying = gameState.getAgentState(self.index).numCarrying
+        visibleGoasts = self.getVisibleGoasts(gameState)
+        if len(visibleGoasts) > 0:
+            for goast in visibleGoasts:
+                if goast.scaredTimer > 0:
+                    if goast.scaredTimer >= 15:
+                        return {'gameStateScore': 110,
+                                'distanceToFood': -10,
                                 'distanceToEnemiesPacMan': 0,
-                                'GhostDistance': -15, 'distanceToCapsule': -10, 'carrying': 100,
-                                'returned': -5 - 4 * numOfCarrying, 'corner': -2, 'foodLeft': 0
-                                }
+                                'GhostDistance': -5,
+                                'distanceToCapsule': 0,
+                                'carrying': 350,
+                                'returned': 10 - 3 * numOfCarrying,
+                                'corner': -2,
+                                'foodLeft': 0}
 
-                # Visible and not scared
+                    elif 6 < goast.scaredTimer < 15:
+                        return {'gameStateScore': 110 + 5 * numOfCarrying,
+                                'distanceToFood': -5,
+                                'distanceToEnemiesPacMan': 50,
+                                'GhostDistance': -15,
+                                'distanceToCapsule': -1000,
+                                'carrying': 100,
+                                'returned': -5 - 4 * numOfCarrying,
+                                'corner': -2,
+                                'foodLeft': 0
+                                }
                 else:
-                    return {'successorScore': 110, 'distanceToFood': -10, 'distanceToEnemiesPacMan': 0,
-                            'GhostDistance': 20, 'distanceToCapsule': -15, 'carrying': 0, 'returned': -15, 'corner': -2,
+                    return {'gameStateScore': 30,
+                            'distanceToFood': -3,
+                            'distanceToEnemiesPacMan': 0,
+                            'GhostDistance': 60,
+                            'distanceToCapsule': -15,
+                            'carrying': 0,
+                            'returned': -30,
+                            'corner': -60,
                             'foodLeft': 0
                             }
 
-        enemiesPacMan = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-        Range = filter(lambda x: x.isPacman and x.getPosition() != None, enemiesPacMan)
-        if len(Range) > 0 and not gameState.getAgentState(self.index).isPacman:
-            return {'successorScore': 0, 'distanceToFood': -1, 'distanceToEnemiesPacMan': 0,  # -8,
-                    'distanceToCapsule': 0, 'GhostDistance': 0,
-                    'returned': 0, 'carrying': 10, 'corner': -2,
-                    'foodLeft': 0}
+        # visiblePacman = self.getVisiblePacman(gameState)
+        # if len(visiblePacman) > 0 and not gameState.getAgentState(self.index).isPacman:
+        #     return {'gameStateScore': 0, 'distanceToFood': -1, 'distanceToEnemiesPacMan': 0,  # -8,
+        #             'distanceToCapsule': 0, 'GhostDistance': 0,
+        #             'returned': 0, 'carrying': 10, 'corner': -2,
+        #             'foodLeft': 0}
 
-        return {'successorScore': 1000 + numOfCarrying * 3.5, 'distanceToFood': -7, 'GhostDistance': 0,
+        return {'gameStateScore': 1000 + numOfCarrying * 3.5,
+                'distanceToFood': -7,
+                'GhostDistance': 0,
                 'distanceToEnemiesPacMan': 0,
                 'distanceToCapsule': -5,
-                'carrying': 350, 'returned': 5 - numOfCarrying * 3, 'corner': -2,
+                'carrying': 350,
+                'returned': 5 - numOfCarrying * 3,
+                'corner': -2,
                 'foodLeft': 0}
+
+
+'''
+========================
+=== Deffensive Agent ===
+========================
+'''
 
 
 class DeffensiveAgent(MonteCarloAgent):
@@ -318,11 +418,7 @@ class DeffensiveAgent(MonteCarloAgent):
         Picks among the actions with the highest Q(s,a).
         """
         actions = gameState.getLegalActions(self.index)
-
-        # You can profile your evaluation time by uncommenting these lines
-        # start = time.time()
         values = [self.evaluate(gameState, a) for a in actions]
-        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
 
         maxValue = max(values)
         bestActions = [a for a, v in zip(actions, values) if v == maxValue]
@@ -389,6 +485,13 @@ class DeffensiveAgent(MonteCarloAgent):
 
     def getWeights(self, gameState, action):
         return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+
+
+'''
+=================
+=== Tree Node ===
+=================
+'''
 
 
 class TreeNode:
