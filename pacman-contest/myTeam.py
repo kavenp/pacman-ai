@@ -128,12 +128,35 @@ class MonteCarloAgent(CaptureAgent):
     '''
 
     def selectActionBaseOnTree(self, gameState):
-        # visibleGoasts = self.getVisibleGoasts(gameState)
-        # if len(visibleGoasts) > 0:
-        #     disToGoast = self.computeMinDisToGoast(gameState)
-        #     if disToGoast == 1 and gameState.getAgentState(self.index).scaredTimer >= 6:
-        #         pass
+        visibleGoasts = self.getVisibleGoasts(gameState)
+        print visibleGoasts
+        if len(visibleGoasts) > 0:
+            nearGoastIndex = self.getNearestGoastIndex(gameState)
+            goastPos = gameState.getAgentPosition(nearGoastIndex)
+            myPos = self.getAgentPosition(gameState)
+            nearDis = self.getMazeDistance(myPos, goastPos)
 
+            print 'me[' + str(myPos[0]) + ',' + str(myPos[1]) + ']' + '   goast[' + str(goastPos[0]) + ',' + str(
+                goastPos[1]) + ']  ',
+
+            if nearDis == 1 and gameState.getAgentState(self.index).scaredTimer >= 6:
+                myW, myH = myPos
+                goastW, goastH = goastPos
+                if not goastW == myW:
+                    if goastW > myW:
+                        print 'East'
+                        return 'East'
+                    else:
+                        print 'West'
+                        return 'West'
+
+                if not goastH == myH:
+                    if goastH > myH:
+                        print 'North'
+                        return 'North'
+                    else:
+                        print 'South'
+                        return 'South'
         start = time.time()
         self.explore_depth = 0
         tree = TreeNode(parent_node=None, action=None, gameState=copy.deepcopy(gameState), index=self.index, depth=0)
@@ -141,10 +164,10 @@ class MonteCarloAgent(CaptureAgent):
         for node in all_leaf_nodes:
             self.doSimulation(node)
 
-        for child in tree.childNodes:
-            print child.action + ":" + str(child.reward) + " ",
-        print " [" + tree.getBestRewardChild().action + "]",
-        print ' time[%d: %.4f]' % (self.index, time.time() - start)
+        # for child in tree.childNodes:
+        #     print child.action + ":" + str(child.reward) + " ",
+        # print " [" + tree.getBestRewardChild().action + "]",
+        # print ' time[%d: %.4f]' % (self.index, time.time() - start)
         return tree.getBestRewardChild().action
 
     def treePolicy(self, tree):
@@ -202,8 +225,18 @@ class MonteCarloAgent(CaptureAgent):
         visible = filter(lambda x: not x.isPacman and x.getPosition() != None, opponents)
         return visible
 
-    def getNearestGoast(self, gameState):
-        pass
+    def getNearestGoastIndex(self, gameState):
+        myPos = self.getAgentPosition(gameState)
+        minDis = sys.maxint
+        minIndex = None
+        for i in self.getOpponents(gameState):
+            opponent = gameState.getAgentState(i)
+            if not opponent.isPacman and opponent.getPosition() != None:
+                dis = self.getMazeDistance(myPos, opponent.getPosition())
+                if dis < minDis:
+                    minDis = dis
+                    minIndex = i
+        return minIndex
 
     def getVisiblePacman(self, gameState):
         opponents = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
@@ -231,7 +264,7 @@ class MonteCarloAgent(CaptureAgent):
         pass
 
     def getAgentPosition(self, gameState):
-        return gameState.getAgentState(self.index).getPosition()
+        return gameState.getAgentPosition(self.index)
 
     def getMinDisToBoundary(self, gameState):
         myPosition = self.getAgentPosition(gameState)
