@@ -95,19 +95,14 @@ class DummyAgent(CaptureAgent):
         for episode in range(10):
             self.s_table.addNewState(curr_pos, actions)
             chosen_action = self.s_table.chooseAction(curr_pos)
-            while True:
-                start = time.time()
+            for step in range(5):
                 next_state = gameState.generateSuccessor(self.index, chosen_action)
                 next_pos = next_state.getAgentState(self.index).getPosition()
                 next_action = self.s_table.chooseAction(next_pos)
                 reward = self.evaluate(next_state, next_action)
-                self.s_table.learn(self.getPacmanPosition(), chosen_action, reward, next_pos, next_action)
+                self.s_table.learn(gameState.getAgentState(self.index).getPosition(), chosen_action, reward, next_pos, next_action)
                 curr_pos = next_pos
                 chosen_action = next_action
-
-                if (time.time() - start) >= 0.1:
-                    break
-
         return chosen_action
 
     def evaluate(self, gameState, action):
@@ -120,7 +115,7 @@ class DummyAgent(CaptureAgent):
 
     def getFeatures(self, gameState, action):
         features = util.Counter()
-        successor = self.getSuccessor(gameState, action)
+        successor = gameState.generateSuccessor(self.index, action)
         foodList = self.getFood(successor).asList()
         features['successorScore'] = -len(foodList)  # self.getScore(successor)
 
@@ -150,7 +145,7 @@ class SarsaTable():
                 self.sarsa_table[agent_pos][i] = 0
 
     def learn(self, curr_pos, curr_action, reward, next_pos, next_action):
-        self.addNewState(next_pos,)
+        self.addNewState(next_pos, next_action)
         q_assumed = self.sarsa_table[curr_pos][curr_action]
         q_real = reward + self.dr * self.sarsa_table[next_pos][next_action]
         self.sarsa_table[curr_pos][curr_action] += self.lr * (q_real - q_assumed)
