@@ -86,7 +86,7 @@ class GameAgent(CaptureAgent):
     # Initialise strategy as one attacker and defender
     self.strats = {}
     self.strats[self.team[0]] = "Attack"
-    self.strats[self.team[1]] = "Defense"
+    self.strats[self.team[1]] = "Attack"
 
     # Flags for agent choice status
     # More detailed than strategy
@@ -182,7 +182,6 @@ class GameAgent(CaptureAgent):
       # Enemy states
       eState = gameState.getAgentState(e)
       # Update enemy ghost and Pacman lists
-
       ePos = gameState.getAgentPosition(e)
       # If there is an accurate position
       if ePos:
@@ -217,6 +216,7 @@ class GameAgent(CaptureAgent):
       return possibleActs[0]
     # Evaluate strategy that should be used for agents in the current inferred gameState
     self.evalStrat(infState)
+    print self.strats
     # Run Expectimax to depth 2 since longer will run over time
     best, act = self.maxFunction(infState, 2)
     #print best
@@ -257,7 +257,10 @@ class GameAgent(CaptureAgent):
     acts = self.getActions(gameState, enemy)
     successors = []
     for act in acts:
-      successors.append(gameState.generateSuccessor(enemy, act))
+      try:
+        successors.append(gameState.generateSuccessor(enemy, act))
+      except:
+        pass
     # Get the expected scores of enemy movement
     scores = []
     # Call expecti for each enemy otherwise go back to max for our agent
@@ -278,19 +281,25 @@ class GameAgent(CaptureAgent):
     """
     myState = gameState.getAgentState(self.index)
     enemyScareTime = [gameState.getAgentState(e).scaredTimer for e in self.enemies]
+    enemyStates = [gameState.getAgentState(e).isPacman for e in self.enemies]
+    enemyPac = enemyStates.count(True)
+    enemyPacIndex = [self.enemies[i] for i in range(len(enemyStates)) if enemyStates[i]]
+    enemyGhost = 2 - enemyPac
     curStrat = self.strats[self.index]
     teamMateStrat = self.getTeamMateStrat()
     curAtk = (curStrat == "Attack")
     teamAtk = (teamMateStrat == "Attack")
     myAtkNum = len([v for v in self.strats.values() if v == "Attack"])
     myDefNum = 2 - myAtkNum
+
     # Try to keep the numbers advantage
-    if len(self.enemyPac) == 2 and myDefNum < 2:
+    if enemyPac == 2 and myDefNum < 2:
       for t in self.team:
         self.strats[t] = "Defense"
     # Defend strategy for the closest teammate
-    elif len(self.enemyPac) == 1:
-      closestTeam = self.getTeamMateClosest(gameState, self.enemyPac[0])
+    elif enemyPac == 1:
+      print "ENEMY PACMAN"
+      closestTeam = self.getTeamMateClosest(gameState, enemyPacIndex[0])
       if self.index != closestTeam:
         self.strats[closestTeam] = "Defense"
         self.strats[self.index] = "Attack"
@@ -301,20 +310,19 @@ class GameAgent(CaptureAgent):
       for t in self.team:
         self.strats[t] = "Attack"
     # Full on attack if losing and running out of time or if enemies are scared
-    if min(enemyScareTime) > 5 or (gameState.data.timeleft < 200 and self.getScore(gameState) < 0):
+    if min(enemyScareTime) > 5 or (gameState.data.timeleft < 250 and self.getScore(gameState) < 0):
       for t in self.team:
         self.strats[t] = "Attack"
     # When we're scared just run
-    if myState.scaredTimer > 0:
+    if myState.scaredTimer > 2:
       self.strats[self.index] = "Run"
       self.strats[self.getTeamMate()] = "Run"
-    else:
-      self.strats[self.team[0]] = "Attack"
-      self.strats[self.team[1]] = "Defense"
+
 
   def evalFunction(self, gameState):
     score = self.getScore(gameState)
     myPos = gameState.getAgentPosition(self.index)
+    myState = gameState.getAgentState(self.index)
     enemyScareTime = [gameState.getAgentState(e).scaredTimer for e in self.enemies]
     numCarry = gameState.getAgentState(self.index).numCarrying
     enemyPac = []
@@ -327,9 +335,11 @@ class GameAgent(CaptureAgent):
         enemyGhost.append(e)
     # Set carry limits so that agents return after eating enough food
     if score < 5:
-      carry = 4
-    else:
       carry = 3
+    else:
+      carry = 2
+
+    seenNum = len(self.seen)
     food = self.getFood(gameState).asList()
     # Direct orthogonal distance to middle
     distHome = abs(self.agentPos[0] - self.mapW/2)
@@ -352,12 +362,14 @@ class GameAgent(CaptureAgent):
     enemyMinD = self.getMinDistance(myPos, enemyPos)
 
     # Set minimum ghost distance to 0
-    if ghostMinD > 4:
-      ghostMinD = 0
+    if ghostMinD >= 4:
+     ghostMinD = 0
 
     # Flip the signs if they are scared and close enough to catch
-    if min(enemyScareTime) < 8 and ghostMinD <= 4:
-      ghostMinD *= -5
+    if min(enemyScareTime) > 7 and ghostMinD <= 4 or not myState.isPacman:
+      ghostMinD *= -3
+      seenNum *= -2
+
 
     if self.strats[self.index] == "Attack":
       # Reached carry threshold or no more food
@@ -365,12 +377,12 @@ class GameAgent(CaptureAgent):
         return - distHome + 500 * ghostMinD
       else:
         # Continue attack
-        return numCarry + 2 * score - 150 * len(food) - 3 * foodMinD - 5000 * len(capsules) - 4 * capMinD + 150 * ghostMinD
+        return 2 * score - 150 * len(food) - 3 * foodMinD - 5000 * len(capsules) - 4 * capMinD + 5 * ghostMinD + 10 * len(self.seen)
     elif self.strats[self.index] == "Defense":
-        return - 500 * len(self.enemyPac) - 10 * pacMinD - 2 * defCapMinD
+        return -100 * pacMinD - 4 * defCapMinD
     else:
         # Run Away!
-        return - 4 * teamDist + 400 * ghostMinD
+        return - 4 * teamDist + 500 * ghostMinD
 
   def getTeamMateClosest(self, gameState, enemy):
     """
