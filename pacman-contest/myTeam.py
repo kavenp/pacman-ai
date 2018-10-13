@@ -345,18 +345,12 @@ class GameAgent(CaptureAgent):
     seenNum = len(self.seen)
     food = self.getFood(gameState).asList()
     # Direct orthogonal distance to middle
-    #distMid = abs(self.agentPos[0] - (self.mapW/2)) + 1
-
-    distMid = min([self.distancer.getDistance(myPos, (self.mapW/2, i))
-         for i in range(self.mapH)
-         if (self.mapW/2, i) in self.legalPositions]) + 1
-
+    distMid = abs(self.agentPos[0] - (self.mapW/2 - 1)) + 1
     # Direct orthogonal distance to my side's edge
     if gameState.isOnRedTeam(self.index):
       distHome = abs(self.agentPos[0]) + 1
     else:
       distHome = abs(self.mapW - self.agentPos[0]) + 1
-
     # Distance from other teammate, split and run
     teamDist = self.distancer.getDistance(myPos, gameState.getAgentPosition(self.getTeamMate()))
     # Positions of the enemies
@@ -377,11 +371,11 @@ class GameAgent(CaptureAgent):
     defCapMinD = self.getMinDistance(myPos, defCaps)
     enemyMinD = self.getMinDistance(myPos, enemyPos)
 
+    # Lessen weight if there's still a lot of scared time left so we don't waste capsules
     if (minScare != 0) :
       capMinD = capMinD / minScare
-    # Flip the signs if they are scared and close enough to catch
+    # Flip the signs if they are scared and close enough to catch or if our agent is a ghost
     if (minScare > 7 and ghostMinD <= 3) or (not myState.isPacman):
-      print "Flipped"
       # Set to minimum ghost distance to 0 if not in danger range
       if ghostMinD >= 4:
         ghostMinD = 0
@@ -400,14 +394,14 @@ class GameAgent(CaptureAgent):
         return - distHome - (100 * numCarry / distMid) + 500 * ghostMinD
       else:
         # Continue attack
-        return 2 * score - (8 * numCarry / distMid) - (4 * numCarry / distHome) - 150 * len(food) - 12 * foodMinD \
-               - 5000 * len(capsules) - 15 * capMinD + 100 * ghostMinD + 15 * len(self.seen)
+        return 2 * score - (10 * numCarry / distMid) - (4 * numCarry / distHome) - 150 * len(food) - 12 * foodMinD \
+               - 5000 * len(capsules) - 15 * capMinD + 100 * ghostMinD + 10 * len(self.seen)
     elif self.strats[self.index] == "Defense":
         return -50 * distHome - 1000 * pacMinD - 7 * defCapMinD
     else:
-        # Run Away! In "Run" Strategy
-        return 4 * score - (7 * numCarry / distMid) - (2 * numCarry / distHome) - 150 * len(food) - 8 * foodMinD - \
-               5000 * len(capsules) - 10 * capMinD + 2000 * ghostMinD + 15 * len(self.seen)
+        # Run Away! In "Run" Strategy, Run while attacking
+        return 4 * score - (10 * numCarry / distMid) - (5 * numCarry / distHome) - 150 * len(food) - 8 * foodMinD - \
+               5000 * len(capsules) - 10 * capMinD + 2000 * ghostMinD + 10 * len(self.seen)
 
   def getTeamMateClosest(self, gameState, enemy):
     """
