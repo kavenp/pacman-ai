@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c62e2eb3-4d32-4d18-b811-d68003ffe1ac" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pacman-contest/myTeam.py" beforeDir="false" afterPath="$PROJECT_DIR$/pacman-contest/myTeam.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -12,19 +13,26 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="CoverageDataManager">
-    <SUITE FILE_PATH="coverage/comp90054_pacman$capture.coverage" NAME="capture Coverage Results" MODIFIED="1539430249102" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/pacman-contest" />
+    <SUITE FILE_PATH="coverage/comp90054_pacman$capture.coverage" NAME="capture Coverage Results" MODIFIED="1539432377191" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/pacman-contest" />
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file leaf-file-name="myTeam.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/pacman-contest/myTeam.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="6768">
-              <caret line="376" column="92" selection-start-line="376" selection-start-column="92" selection-end-line="376" selection-end-column="92" />
+            <state relative-caret-position="702">
+              <caret line="414" column="51" lean-forward="true" selection-start-line="414" selection-start-column="51" selection-end-line="414" selection-end-column="51" />
               <folding>
                 <element signature="e#649#674#0" expanded="true" />
               </folding>
             </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="myTeamMaster.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/pacman-contest/myTeamMaster.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-7074" />
           </provider>
         </entry>
       </file>
@@ -92,7 +100,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -113,6 +120,7 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -166,7 +174,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/pacman-contest/capture.py" />
-      <option name="PARAMETERS" value="-r myTeam.py -b myTeam2.py --layout=RANDOM" />
+      <option name="PARAMETERS" value="-r myTeam.py -b myTeamMaster.py --layout=RANDOM" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -201,7 +209,7 @@
       <window_info anchor="bottom" id="Python Console" order="7" weight="0.3297953" />
       <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.4998012" visible="true" weight="0.3297953" />
       <window_info anchor="bottom" id="Terminal" order="7" weight="0.3297953" />
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.25367793" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.25566602" />
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="right" id="Database" order="3" />
       <window_info anchor="right" id="SciView" order="3" />
@@ -224,6 +232,31 @@
     <option name="myLimit" value="2678400000" />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/pacman-contest/myTeam.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="6768">
+          <caret line="376" column="92" selection-start-line="376" selection-start-column="92" selection-end-line="376" selection-end-column="92" />
+          <folding>
+            <element signature="e#649#674#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pacman-contest/myTeam2.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pacman-contest/captureAgents.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pacman-contest/baselineTeam.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pacman-contest/capture.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pacman-contest/util.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
     <entry file="file://$PROJECT_DIR$/pacman-contest/myTeam.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="6894">
@@ -294,10 +327,15 @@
     <entry file="file://$PROJECT_DIR$/pacman-contest/myTeam2.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
+    <entry file="file://$PROJECT_DIR$/pacman-contest/myTeamMaster.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-7074" />
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/pacman-contest/myTeam.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="6768">
-          <caret line="376" column="92" selection-start-line="376" selection-start-column="92" selection-end-line="376" selection-end-column="92" />
+        <state relative-caret-position="702">
+          <caret line="414" column="51" lean-forward="true" selection-start-line="414" selection-start-column="51" selection-end-line="414" selection-end-column="51" />
           <folding>
             <element signature="e#649#674#0" expanded="true" />
           </folding>

@@ -394,13 +394,13 @@ class GameAgent(CaptureAgent):
         return - distHome - (100 * numCarry / distMid) + 500 * ghostMinD
       else:
         # Continue attack
-        return 2 * score - (10 * numCarry / distMid) - (4 * numCarry / distHome) - 150 * len(food) - 12 * foodMinD \
+        return 2 * score - (100 * numCarry / distMid) - (4 * numCarry / distHome) - 150 * len(food) - 12 * foodMinD \
                - 5000 * len(capsules) - 15 * capMinD + 100 * ghostMinD + 10 * len(self.seen)
     elif self.strats[self.index] == "Defense":
         return -50 * distHome - 1000 * pacMinD - 7 * defCapMinD
     else:
         # Run Away! In "Run" Strategy, Run while attacking
-        return 4 * score - (10 * numCarry / distMid) - (5 * numCarry / distHome) - 150 * len(food) - 8 * foodMinD - \
+        return 4 * score - (100 * numCarry / distMid) - (5 * numCarry / distHome) - 150 * len(food) - 8 * foodMinD - \
                5000 * len(capsules) - 10 * capMinD + 2000 * ghostMinD + 10 * len(self.seen)
 
   def getTeamMateClosest(self, gameState, enemy):
