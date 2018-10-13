@@ -25,7 +25,7 @@ import game
 
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first='DummyAgent', second='DummyAgent'):
+               first='DummyAgent', second='SummyAgent'):
     """
     This function should return a list of two agents that will form the
     team, initialized using firstIndex and secondIndex as their agent
@@ -47,6 +47,25 @@ def createTeam(firstIndex, secondIndex, isRed,
 ##########
 # Agents #
 ##########
+
+
+class SummyAgent(CaptureAgent):
+    """docstring for SummyAgent"""
+
+    def registerInitialState(self, gameState):
+        CaptureAgent.registerInitialState(self, gameState)
+
+    def chooseAction(self, gameState):
+        """
+        Picks among actions randomly.
+        """
+        actions = gameState.getLegalActions(self.index)
+
+        '''
+        You should change this in your own agent.
+        '''
+
+        return random.choice(actions)
 
 
 class DummyAgent(CaptureAgent):
@@ -81,6 +100,7 @@ class DummyAgent(CaptureAgent):
         Your initialization code goes here, if you need any.
         '''
         self.s_table = SarsaTable()
+        self.next_action = ""
 
     def chooseAction(self, gameState):
         """
@@ -91,18 +111,22 @@ class DummyAgent(CaptureAgent):
         You should change this in your own agent.
         '''
         curr_pos = gameState.getAgentPosition(self.index)
-
-        for episode in range(10):
-            self.s_table.addNewState(curr_pos, actions)
-            chosen_action = self.s_table.chooseAction(curr_pos)
-            for step in range(5):
-                next_state = gameState.generateSuccessor(self.index, chosen_action)
-                next_pos = next_state.getAgentState(self.index).getPosition()
-                next_action = self.s_table.chooseAction(next_pos)
-                reward = self.evaluate(next_state, next_action)
-                self.s_table.learn(gameState.getAgentState(self.index).getPosition(), chosen_action, reward, next_pos, next_action)
-                curr_pos = next_pos
-                chosen_action = next_action
+        self.s_table.addNewState(curr_pos, actions)
+        chosen_action = self.s_table.chooseAction(curr_pos)
+        if self.next_action != "":
+            chosen_action = self.next_action
+        for step in range(5):
+            gameState = gameState.generateSuccessor(self.index, chosen_action)
+            next_pos = gameState.getAgentState(self.index).getPosition()
+            next_actions = gameState.getLegalActions(self.index)
+            self.s_table.addNewState(next_pos, next_actions)
+            next_action = self.s_table.chooseAction(next_pos)
+            print next_action
+            reward = self.evaluate(gameState, next_action)
+            self.s_table.learn(curr_pos, chosen_action, reward, next_pos, next_action)
+            curr_pos = next_pos
+            self.next_action = next_action
+            actions = next_actions
         return chosen_action
 
     def evaluate(self, gameState, action):
@@ -151,5 +175,10 @@ class SarsaTable():
         self.sarsa_table[curr_pos][curr_action] += self.lr * (q_real - q_assumed)
 
     def chooseAction(self, curr_pos):
-        action = max(self.sarsa_table[curr_pos])
+        maxvalue = -99999
+        action = ""
+        for key, value in self.sarsa_table[curr_pos].iteritems():
+            if value > maxvalue:
+                maxvalue = value
+                action = key
         return action
