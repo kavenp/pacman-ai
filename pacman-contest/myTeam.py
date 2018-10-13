@@ -14,7 +14,11 @@
 
 from captureAgents import CaptureAgent
 from math import *
-import random, time, util, sys, math
+import random
+import time
+import util
+import sys
+import math
 from game import Directions
 import game
 import sys
@@ -313,6 +317,21 @@ class OffensiveAgent(MonteCarloAgent):
             else:
                 return self.selectActionBaseOnTree(gameState)
         else:
+            if len(visibleGoasts) > 0:
+                print "buyao"
+                nearGoastIndex = self.getNearestGoastIndex(gameState)
+                goastPos = gameState.getAgentPosition(nearGoastIndex)
+                avoidActions = gameState.getLegalActions(self.index)
+                future_distance = 0
+                avoidAction = random.choice(avoidActions)
+                for action in avoidActions:
+                    my_curr_pos = gameState.getAgentState(self.index).getPosition()
+                    my_next_state = gameState.generateSuccessor(self.index, action)
+                    my_next_pos = gameState.getAgentState(self.index).getPosition()
+                    if future_distance < self.getMazeDistance(my_curr_pos, my_next_pos):
+                        avoidAction = action
+                return avoidAction
+                # return
             return self.selectActionBaseOnDisToFood(gameState)
 
     def getFeatures(self, gameState):
