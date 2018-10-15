@@ -307,8 +307,11 @@ class OffensiveAgent(MonteCarloAgent):
 
     def chooseAction(self, gameState):
         visibleGoasts = self.getVisibleGoasts(gameState)
+        numOfCarrying = gameState.getAgentState(self.index).numCarrying
         if gameState.getAgentState(self.index).isPacman:
             if len(visibleGoasts) <= 0 or self.getEnemieGoastScareTime(gameState) >= 15:
+                if numOfCarrying > 5:
+                    return self.selectActionBaseOnTree(gameState)
                 return self.selectActionBaseOnDisToFood(gameState)
             else:
                 return self.selectActionBaseOnTree(gameState)
@@ -441,7 +444,6 @@ class OffensiveAgent(MonteCarloAgent):
                             'corner': -60,
                             'foodLeft': 0
                             }
-
 
         return {'gameStateScore': 1000 + numOfCarrying * 3.5,
                 'distanceToFood': -7,
