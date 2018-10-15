@@ -442,12 +442,6 @@ class OffensiveAgent(MonteCarloAgent):
                             'foodLeft': 0
                             }
 
-        # visiblePacman = self.getVisiblePacman(gameState)
-        # if len(visiblePacman) > 0 and not gameState.getAgentState(self.index).isPacman:
-        #     return {'gameStateScore': 0, 'distanceToFood': -1, 'distanceToEnemiesPacMan': 0,  # -8,
-        #             'distanceToCapsule': 0, 'GhostDistance': 0,
-        #             'returned': 0, 'carrying': 10, 'corner': -2,
-        #             'foodLeft': 0}
 
         return {'gameStateScore': 1000 + numOfCarrying * 3.5,
                 'distanceToFood': -7,
@@ -472,27 +466,18 @@ class DeffensiveAgent(MonteCarloAgent):
     def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(self, gameState)
 
-        # parameters
         self.MAX_TREE_DEPTH = 6
         self.MAX_SIMULATION_DEPTH = 1
         self.DISCOUNT_RATE = 0.3
 
-        # get the boundary tiles
         self.boundary = self.getBoundry(gameState)
 
         self.DenfendList = {}
         self.target = None
         self.lastObservedFood = None
-        # Update probabilities to each patrol point.
         self.DefenceProbability(gameState)
 
     def DefenceProbability(self, gameState):
-        """
-        This method calculates the minimum distance from our patrol
-        points to our pacdots. The inverse of this distance will
-        be used as the probability to select the patrol point as
-        target.
-        """
         total = 0
 
         for position in self.boundary:
@@ -503,7 +488,6 @@ class DeffensiveAgent(MonteCarloAgent):
             self.DenfendList[position] = 1.0 / float(closestFoodDistance)
             total += self.DenfendList[position]
 
-        # Normalize.
         if total == 0:
             total = 1
         for x in self.DenfendList.keys():
@@ -519,9 +503,6 @@ class DeffensiveAgent(MonteCarloAgent):
         return random.choice(bestTarget)
 
     def chooseAction(self, gameState):
-
-        # start = time.time()
-
         DefendingList = self.getFoodYouAreDefending(gameState).asList()
         if self.lastObservedFood and len(self.lastObservedFood) != len(DefendingList):
             self.DefenceProbability(gameState)
@@ -529,16 +510,11 @@ class DeffensiveAgent(MonteCarloAgent):
         if myPos == self.target:
             self.target = None
 
-        # Visible enemy , keep chasing.
         enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
         inRange = filter(lambda x: x.isPacman and x.getPosition() != None, enemies)
         if len(inRange) > 0:
             eneDis, enemyPac = min([(self.getMazeDistance(myPos, x.getPosition()), x) for x in inRange])
             self.target = enemyPac.getPosition()
-            # for x in inRange:
-            # if self.agent.getMazeDistance(myPos,x.getPosition())==closestGhost:
-            # self.target=x.getPosition()
-            # print(self.target)
 
         elif self.lastObservedFood != None:
             eaten = set(self.lastObservedFood) - set(self.getFoodYouAreDefending(gameState).asList())
@@ -547,13 +523,11 @@ class DeffensiveAgent(MonteCarloAgent):
 
         self.lastObservedFood = self.getFoodYouAreDefending(gameState).asList()
 
-        # We have only a few dots.
         if self.target == None and len(self.getFoodYouAreDefending(gameState).asList()) <= 4:
             food = self.getFoodYouAreDefending(gameState).asList() + self.getCapsulesYouAreDefending(
                 gameState)
             self.target = random.choice(food)
 
-        # Random patrolling
         elif self.target == None:
             self.target = self.selectPatrolTarget()
 
@@ -567,11 +541,9 @@ class DeffensiveAgent(MonteCarloAgent):
                 feasible.append(a)
                 fvalues.append(self.getMazeDistance(newPosition, self.target))
 
-        # Randomly chooses between ties.
         best = min(fvalues)
         ties = filter(lambda x: x[0] == best, zip(fvalues, feasible))
 
-        # print 'eval time for defender agent %d: %.4f' % (self.index, time.time() - start)
         return random.choice(ties)[1]
 
 
