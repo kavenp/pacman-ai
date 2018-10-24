@@ -53,7 +53,7 @@ class MonteCarloAgent(CaptureAgent):
         CaptureAgent.registerInitialState(self, gameState)
 
         # parameters
-        self.MAX_TREE_DEPTH = 6
+        self.MAX_TREE_DEPTH = 30
         self.MAX_SIMULATION_DEPTH = 1
         self.DISCOUNT_RATE = 0.3
 
@@ -95,8 +95,9 @@ class MonteCarloAgent(CaptureAgent):
                 if dist < bestDist:
                     bestAction = action
                     bestDist = dist
+            print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
             return bestAction
-
+        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
         return random.choice(bestActions)
 
     def evaluateDis(self, gameState, action):
@@ -129,45 +130,53 @@ class MonteCarloAgent(CaptureAgent):
 
     def selectActionBaseOnTree(self, gameState):
         visibleGoasts = self.getVisibleGoasts(gameState)
-        print visibleGoasts
+        # print visibleGoasts
         if len(visibleGoasts) > 0:
             nearGoastIndex = self.getNearestGoastIndex(gameState)
             goastPos = gameState.getAgentPosition(nearGoastIndex)
             myPos = self.getAgentPosition(gameState)
             nearDis = self.getMazeDistance(myPos, goastPos)
 
-            print 'me[' + str(myPos[0]) + ',' + str(myPos[1]) + ']' + '   goast[' + str(goastPos[0]) + ',' + str(
-                goastPos[1]) + ']  ',
+            # print 'me[' + str(myPos[0]) + ',' + str(myPos[1]) + ']' + '   goast[' + str(goastPos[0]) + ',' + str(
+            #     goastPos[1]) + ']  '
 
             if nearDis == 1 and gameState.getAgentState(self.index).scaredTimer >= 6:
                 myW, myH = myPos
                 goastW, goastH = goastPos
                 if not goastW == myW:
                     if goastW > myW:
-                        print 'East'
+                        # print 'East'
+                        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
                         return 'East'
                     else:
-                        print 'West'
+                        # print 'West'
+                        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
                         return 'West'
 
                 if not goastH == myH:
                     if goastH > myH:
-                        print 'North'
+                        # print 'North'
+                        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
                         return 'North'
                     else:
-                        print 'South'
+                        # print 'South'
+                        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
                         return 'South'
-        start = time.time()
-        self.explore_depth = 0
+        # start = time.time()
+        # self.explore_depth = 0
         tree = TreeNode(parent_node=None, action=None, gameState=copy.deepcopy(gameState), index=self.index, depth=0)
         all_leaf_nodes = self.treePolicy(tree)
         for node in all_leaf_nodes:
+            time_consume = time.time() - self.start_time
+            if time_consume > 0.8:
+                break
             self.doSimulation(node)
 
         # for child in tree.childNodes:
         #     print child.action + ":" + str(child.reward) + " ",
         # print " [" + tree.getBestRewardChild().action + "]",
         # print ' time[%d: %.4f]' % (self.index, time.time() - start)
+        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
         return tree.getBestRewardChild().action
 
     def treePolicy(self, tree):
@@ -182,8 +191,15 @@ class MonteCarloAgent(CaptureAgent):
                     child = current.expand(childAction)
                     child.reward = self.evaluate(child.gameState)
                     stack.push(child)
+                    time_consume = time.time() - self.start_time
+                    if time_consume > 0.8:
+                        break
             else:
                 leaf_nodes.append(current)
+
+            time_consume = time.time() - self.start_time
+            if time_consume > 0.8:
+                break
         return leaf_nodes
 
     def doSimulation(self, leaf_node):
@@ -195,6 +211,9 @@ class MonteCarloAgent(CaptureAgent):
             actions = gameState.getLegalActions(self.index)
             gameState = gameState.generateSuccessor(self.index, random.choice(actions))
             leaf_node.reward = (1 - discount) * leaf_node.reward + discount * self.evaluate(gameState)
+            time_consume = time.time() - self.start_time
+            if time_consume > 0.8:
+                break
         leaf_node.backup(self.DISCOUNT_RATE)
 
     '''
@@ -306,6 +325,7 @@ class MonteCarloAgent(CaptureAgent):
 class OffensiveAgent(MonteCarloAgent):
 
     def chooseAction(self, gameState):
+        self.start_time = time.time()
         visibleGoasts = self.getVisibleGoasts(gameState)
         numOfCarrying = gameState.getAgentState(self.index).numCarrying
         if gameState.getAgentState(self.index).isPacman:
