@@ -95,9 +95,9 @@ class MonteCarloAgent(CaptureAgent):
                 if dist < bestDist:
                     bestAction = action
                     bestDist = dist
-            print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
+            # print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
             return bestAction
-        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
+        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
         return random.choice(bestActions)
 
     def evaluateDis(self, gameState, action):
@@ -146,21 +146,21 @@ class MonteCarloAgent(CaptureAgent):
                 if not goastW == myW:
                     if goastW > myW:
                         # print 'East'
-                        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
+                        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
                         return 'East'
                     else:
                         # print 'West'
-                        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
+                        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
                         return 'West'
 
                 if not goastH == myH:
                     if goastH > myH:
                         # print 'North'
-                        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
+                        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
                         return 'North'
                     else:
                         # print 'South'
-                        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
+                        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
                         return 'South'
         # start = time.time()
         # self.explore_depth = 0
@@ -176,7 +176,7 @@ class MonteCarloAgent(CaptureAgent):
         #     print child.action + ":" + str(child.reward) + " ",
         # print " [" + tree.getBestRewardChild().action + "]",
         # print ' time[%d: %.4f]' % (self.index, time.time() - start)
-        print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
+        # print 'eval time for agent %d: %.4f' % (self.index, time.time() - self.start_time)
         return tree.getBestRewardChild().action
 
     def treePolicy(self, tree):
